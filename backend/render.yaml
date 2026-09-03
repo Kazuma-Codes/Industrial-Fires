@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: thermal-intelligence-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: ADMIN_API_TOKEN
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "https://thermal-intelligence.vercel.app,http://localhost:3000"
+      - key: DEMO_BBOX
+        value: "69.5,22.0,70.8,23.0"

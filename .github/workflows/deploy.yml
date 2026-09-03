@@ -1,0 +1,41 @@
+name: CI Pipeline & Cloud Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend dependencies
+        run: |
+          pip install -r backend/requirements.txt
+      - name: Verify imports & syntax
+        run: |
+          python -c "import app.main; print('FastAPI loaded successfully!')"
+        working-directory: backend
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build Next.js
+        run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: "https://thermal-intelligence-api.onrender.com"
