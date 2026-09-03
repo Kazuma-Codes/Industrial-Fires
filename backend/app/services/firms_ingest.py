@@ -25,7 +25,11 @@ def fetch_firms_csv_api(map_key: str, bbox: str, days: int = 3, satellite: str =
         logger.info("No NASA FIRMS MAP_KEY provided, falling back to local dataset")
         return None
 
-    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{map_key}/{satellite}/{bbox}/{days}"
+    bbox_clean = (bbox or "").strip()
+    if bbox_clean.upper() in ("IND", "INDIA"):
+        url = f"https://firms.modaps.eosdis.nasa.gov/api/country/csv/{map_key}/{satellite}/IND/{days}"
+    else:
+        url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{map_key}/{satellite}/{bbox_clean}/{days}"
     logger.info(f"Querying NASA FIRMS API: {url.replace(map_key, '***')}")
     try:
         resp = requests.get(url, timeout=30)
