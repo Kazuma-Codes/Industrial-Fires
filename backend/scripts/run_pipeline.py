@@ -7,8 +7,9 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from app.database import SessionLocal
 from app.models import Facility
-from app.services.firms_ingest import ingest_firms
+from app.services.firms_ingest import ingest_firms, ingest_all_corridors, prune_old_events
 from app.services.osm_ingest import ingest_osm_facilities
+from scripts.import_india_assets import import_assets
 from app.services.spatial_enrichment import enrich_spatial_for_events
 from app.services.persistence import compute_persistence_scores
 from app.services.baseline import compute_facility_baselines
@@ -20,21 +21,29 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("run_pipeline")
 
 
-def run_full_pipeline():
+def run_full_pipeline(corridors: bool = True):
     logger.info("=== Starting Thermal Intelligence Processing Pipeline ===")
     db = SessionLocal()
     try:
-        # Step 1: Ensure facilities exist
-        fac_count = db.query(Facility).count()
-        if fac_count == 0:
-            logger.info("Step 1: Facilities table empty. Ingesting industrial facilities...")
-            ingest_osm_facilities(db)
-        else:
-            logger.info(f"Step 1: Verified {fac_count} industrial facilities in database.")
+        # Step 0: Retention cleanup (keep Neon under 0.5 GB)
+        logger.info("Step 0: Executing 90-day retention pruning...")
+        prune_old_events(db, retention_days=90)
 
-        # Step 2: Ingest FIRMS active fires
-        logger.info("Step 2: Ingesting NASA FIRMS VIIRS active fire data...")
-        firms_count = ingest_firms(db, days=3)
+        # Step 1: Ensure national critical facilities exist
+        fac_count = db.query(Facility).count()
+        if fac_count < 10:
+            logger.info("Step 1: Facilities table has few assets. Importing curated national infrastructure...")
+            import_assets()
+            fac_count = db.query(Facility).count()
+        logger.info(f"Step 1: Verified {fac_count} critical infrastructure assets in database.")
+
+        # Step 2: Ingest NASA FIRMS active fires
+        logger.info("Step 2: Ingesting NASA FIRMS VIIRS active fire data across corridors...")
+        if corridors:
+            results = ingest_all_corridors(db, days=3)
+            firms_count = sum(results.values())
+        else:
+            firms_count = ingest_firms(db, days=3)
         logger.info(f"Step 2: Ingested {firms_count} new thermal events.")
 
         # Step 3: Spatial matching with industrial facilities

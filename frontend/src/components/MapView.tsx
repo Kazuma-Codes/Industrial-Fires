@@ -14,6 +14,10 @@ import {
   Moon,
   Mountain,
   Box,
+  Compass,
+  Zap,
+  Flame,
+  Factory,
 } from "lucide-react";
 
 interface Props {
@@ -99,6 +103,13 @@ const MULTI_BASE_STYLE: maplibregl.StyleSpecification = {
   ],
 };
 
+const CORRIDOR_PRESETS = [
+  { id: "all", name: "All India", lon: 78.9629, lat: 22.5937, zoom: 4.6, icon: Compass },
+  { id: "gujarat", name: "Gujarat (Jamnagar)", lon: 69.8524, lat: 22.3601, zoom: 10, icon: Factory },
+  { id: "korba", name: "Korba-Singrauli", lon: 82.6841, lat: 23.5000, zoom: 8.8, icon: Zap },
+  { id: "jharia", name: "Jharia Coalfields", lon: 86.4172, lat: 23.7431, zoom: 10.5, icon: Flame },
+];
+
 export default function MapView({
   events,
   facilities,
@@ -113,6 +124,18 @@ export default function MapView({
 
   const [activeBaseLayer, setActiveBaseLayer] = useState<BaseLayerType>("satellite");
   const [is3DMode, setIs3DMode] = useState(false);
+  const [activeCorridor, setActiveCorridor] = useState<string>("all");
+
+  const handleCorridorJump = (corridor: typeof CORRIDOR_PRESETS[number]) => {
+    setActiveCorridor(corridor.id);
+    if (!mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [corridor.lon, corridor.lat],
+      zoom: corridor.zoom,
+      essential: true,
+      duration: 1600,
+    });
+  };
 
   // Keep latest data refs so map.on("load") always has current data
   const eventsRef = useRef(events);
@@ -391,6 +414,32 @@ export default function MapView({
   return (
     <div className="absolute inset-0 w-full h-full">
       <div ref={mapContainer} className="w-full h-full" style={{ minHeight: "100%" }} />
+
+      {/* Corridor Quick-Jump Tactical Theatre Bar */}
+      <div className="absolute top-4 left-14 z-10 hidden sm:flex items-center gap-1.5 bg-slate-950/90 backdrop-blur-md p-1 rounded-lg border border-slate-800 shadow-2xl text-xs">
+        <span className="px-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold border-r border-slate-800">
+          Theatre
+        </span>
+        {CORRIDOR_PRESETS.map((c) => {
+          const IconComponent = c.icon;
+          const isActive = activeCorridor === c.id;
+          return (
+            <button
+              key={c.id}
+              onClick={() => handleCorridorJump(c)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                isActive
+                  ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+              title={`Fly camera directly to ${c.name}`}
+            >
+              <IconComponent className="w-3.5 h-3.5" />
+              <span>{c.name}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Floating Tactical Layer Switcher & 3D Tilt Controls */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">

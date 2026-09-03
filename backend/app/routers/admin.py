@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.schemas import PipelineStatus
-from app.services.firms_ingest import ingest_firms
+from app.services.firms_ingest import ingest_firms, ingest_all_corridors, prune_old_events, TARGET_CORRIDORS
 from app.services.osm_ingest import ingest_osm_facilities
+from scripts.import_india_assets import import_assets
 from app.services.spatial_enrichment import enrich_spatial_for_events
 from app.services.persistence import compute_persistence_scores
 from app.services.baseline import compute_facility_baselines
@@ -45,6 +46,40 @@ def trigger_firms_ingest(bbox: Optional[str] = None, days: int = 3, db: Session 
         success=True,
         message=f"Ingested {count} raw FIRMS VIIRS detections",
         counts={"inserted_events": count}
+    )
+
+
+@router.post("/seed-india-assets", response_model=PipelineStatus, dependencies=[Depends(verify_admin_auth)])
+def trigger_seed_india_assets():
+    """Seed curated real Indian critical infrastructure (refineries, power plants, LNG terminals, coalfields)"""
+    count = import_assets()
+    return PipelineStatus(
+        success=True,
+        message=f"Seeded {count} critical national infrastructure assets",
+        counts={"facilities": count}
+    )
+
+
+@router.post("/prune-retention", response_model=PipelineStatus, dependencies=[Depends(verify_admin_auth)])
+def trigger_retention_prune(days: int = 90, db: Session = Depends(get_db)):
+    """Prune thermal events older than specified days to keep database under 0.5 GB storage cap"""
+    count = prune_old_events(db, retention_days=days)
+    return PipelineStatus(
+        success=True,
+        message=f"Pruned {count} events older than {days} days",
+        counts={"pruned_events": count}
+    )
+
+
+@router.post("/ingest-corridors", response_model=PipelineStatus, dependencies=[Depends(verify_admin_auth)])
+def trigger_corridors_ingest(days: int = 3, db: Session = Depends(get_db)):
+    """Ingest real satellite thermal data across all strategic corridors (Jamnagar, Korba-Singrauli, Jharia, Assam)"""
+    results = ingest_all_corridors(db, days=days)
+    total = sum(results.values())
+    return PipelineStatus(
+        success=True,
+        message=f"Ingested {total} detections across {len(results)} operational corridors",
+        counts=results
     )
 
 
