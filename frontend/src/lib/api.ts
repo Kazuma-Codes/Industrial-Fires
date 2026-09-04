@@ -7,11 +7,28 @@ import {
   DashboardStats,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const getBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost")) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
+    return "https://thermal-intelligence-backend.onrender.com";
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+};
 
 const client = axios.create({
-  baseURL: API_BASE,
+  baseURL: getBaseUrl(),
   timeout: 15000,
+});
+
+client.interceptors.request.use((config) => {
+  if (!config.baseURL || config.baseURL.includes("localhost")) {
+    if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
+      config.baseURL = "https://thermal-intelligence-backend.onrender.com";
+    }
+  }
+  return config;
 });
 
 // Fallback demo data to ensure presentation never fails even if backend sleeps
