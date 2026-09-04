@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from app.database import SessionLocal, engine, Base
 from app.models import Facility, ThermalEvent, EventIntel, FacilityBaseline, Alert, HAS_GEOALCHEMY
-from app.services.osm_ingest import ingest_osm_facilities
+from scripts.import_india_assets import import_assets
 from app.services.spatial_enrichment import enrich_spatial_for_events
 from app.services.persistence import compute_persistence_scores
 from app.services.baseline import compute_facility_baselines
@@ -35,8 +35,8 @@ def seed_demo_scenarios():
         # 2. Ensure facilities are ingested
         fac_count = db.query(Facility).count()
         if fac_count == 0:
-            logger.info("Ingesting base industrial facilities for Jamnagar corridor...")
-            ingest_osm_facilities(db)
+            logger.info("Ingesting base industrial facilities from national dataset...")
+            import_assets()
 
         # Retrieve Reliance and Nayara facilities
         reliance = db.query(Facility).filter(Facility.name.like("%Reliance%")).first()

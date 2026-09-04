@@ -8,6 +8,7 @@ from app.schemas import PipelineStatus
 from app.services.firms_ingest import ingest_firms, ingest_all_corridors, prune_old_events, TARGET_CORRIDORS
 from app.services.osm_ingest import ingest_osm_facilities
 from scripts.import_india_assets import import_assets
+from scripts.seed_demo import seed_demo_scenarios
 from app.services.spatial_enrichment import enrich_spatial_for_events
 from app.services.persistence import compute_persistence_scores
 from app.services.baseline import compute_facility_baselines
@@ -58,6 +59,20 @@ def trigger_seed_india_assets():
         message=f"Seeded {count} critical national infrastructure assets",
         counts={"facilities": count}
     )
+
+
+@router.post("/seed-demo", response_model=PipelineStatus, dependencies=[Depends(verify_admin_auth)])
+def trigger_seed_demo():
+    """Seed the 4 Jamnagar demonstration pitch scenarios with instant alerts, baselines, and explainability"""
+    try:
+        seed_demo_scenarios()
+        return PipelineStatus(
+            success=True,
+            message="Seeded 4 Jamnagar pitch scenarios (Routine Flare, Critical Anomaly, Gir Wildfire, Agri Burn) with full baselines and alerts."
+        )
+    except Exception as e:
+        logger.exception("Failed to seed demo scenarios")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/prune-retention", response_model=PipelineStatus, dependencies=[Depends(verify_admin_auth)])
