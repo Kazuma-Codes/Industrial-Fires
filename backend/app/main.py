@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import check_db_connection, Base, engine
@@ -81,6 +81,11 @@ def root():
     }
 
 
+@app.head("/")
+def root_head():
+    return Response(status_code=200)
+
+
 @app.get("/health")
 def health_check():
     db_connected = check_db_connection()
@@ -89,6 +94,11 @@ def health_check():
         "database": "connected" if db_connected else "disconnected",
         "version": "1.0.0"
     }
+
+
+@app.head("/health")
+def health_check_head():
+    return Response(status_code=200)
 
 
 if __name__ == "__main__":
