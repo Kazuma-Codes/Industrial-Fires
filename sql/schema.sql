@@ -12,15 +12,38 @@ CREATE TABLE IF NOT EXISTS facilities (
     facility_type VARCHAR(64) NOT NULL, -- refinery, power_plant, factory, petroleum_well, industrial_area
     criticality INTEGER NOT NULL DEFAULT 1 CHECK (criticality BETWEEN 1 AND 5),
     operator VARCHAR(255),
-    geom GEOMETRY(Geometry, 4326) NOT NULL,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    geom GEOMETRY(Geometry, 4326),
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE facilities ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE facilities ALTER COLUMN geom DROP NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_facilities_geom ON facilities USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_facilities_type ON facilities(facility_type);
 CREATE INDEX IF NOT EXISTS idx_facilities_criticality ON facilities(criticality);
+
+-- Trigger to automatically set geom Point from lat/lon on facilities
+CREATE OR REPLACE FUNCTION set_facility_geom()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.geom IS NULL AND NEW.longitude IS NOT NULL AND NEW.latitude IS NOT NULL THEN
+        NEW.geom := ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_set_facility_geom ON facilities;
+CREATE TRIGGER trg_set_facility_geom
+BEFORE INSERT OR UPDATE ON facilities
+FOR EACH ROW
+EXECUTE FUNCTION set_facility_geom();
 
 -- 2. Raw FIRMS VIIRS Thermal Events
 CREATE TABLE IF NOT EXISTS thermal_events (

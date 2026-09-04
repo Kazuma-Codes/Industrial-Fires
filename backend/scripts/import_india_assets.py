@@ -14,11 +14,17 @@ logger = logging.getLogger("import_india_assets")
 
 
 def import_assets(csv_path: Path = None) -> int:
-    if csv_path is None:
-        csv_path = Path(__file__).resolve().parent.parent / "data" / "facilities" / "india_critical_assets.csv"
+    if csv_path is None or not csv_path.exists():
+        candidates = [
+            Path(__file__).resolve().parent.parent / "data" / "facilities" / "india_critical_assets.csv",
+            Path.cwd() / "data" / "facilities" / "india_critical_assets.csv",
+            Path.cwd() / "backend" / "data" / "facilities" / "india_critical_assets.csv",
+            Path("/app/data/facilities/india_critical_assets.csv"),
+        ]
+        csv_path = next((p for p in candidates if p.exists()), candidates[0])
 
     if not csv_path.exists():
-        logger.error(f"Asset file not found at: {csv_path}")
+        logger.error(f"Asset file not found at any candidate path. Checked: {csv_path}")
         return 0
 
     logger.info(f"Loading critical infrastructure assets from {csv_path}")
@@ -90,7 +96,7 @@ def import_assets(csv_path: Path = None) -> int:
 
     except Exception as e:
         db.rollback()
-        logger.error(f"Failed to import assets: {e}")
+        logger.exception(f"Failed to import assets: {e}")
         return 0
     finally:
         db.close()

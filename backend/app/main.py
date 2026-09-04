@@ -23,8 +23,23 @@ async def lifespan(app: FastAPI):
             # Ensure tables exist (safe for both sqlite and postgres)
             Base.metadata.create_all(bind=engine)
             logger.info("Database tables initialized.")
+
+            # Automatic PostgreSQL schema migration to guarantee latitude/longitude exist on facilities
+            if "postgresql" in str(engine.url):
+                with engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE facilities ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;"))
+                    conn.execute(text("ALTER TABLE facilities ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;"))
+                    conn.execute(text("ALTER TABLE facilities ALTER COLUMN geom DROP NOT NULL;"))
+                    conn.execute(text("""
+                        UPDATE facilities 
+                        SET latitude = ST_Y(ST_Centroid(geom)),
+                            longitude = ST_X(ST_Centroid(geom))
+                        WHERE latitude IS NULL AND geom IS NOT NULL;
+                    """))
+                    conn.commit()
+                logger.info("Executed automatic Postgres schema migration for facilities table.")
         except Exception as err:
-            logger.warning(f"Metadata create_all notice (PostGIS tables may exist): {err}")
+            logger.warning(f"Metadata / schema migration notice: {err}")
     else:
         logger.warning("Database connection could not be verified on startup. Check DATABASE_URL configuration.")
     yield
