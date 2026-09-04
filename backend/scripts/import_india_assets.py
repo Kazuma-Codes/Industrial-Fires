@@ -27,9 +27,21 @@ def import_assets(csv_path: Path = None) -> int:
         logger.error(f"Asset file not found at any candidate path. Checked: {csv_path}")
         return 0
 
-    logger.info(f"Loading critical infrastructure assets from {csv_path}")
     db = SessionLocal()
     is_postgres = "postgresql" in str(engine.url)
+
+    # Ensure latitude and longitude columns exist on PostgreSQL
+    if is_postgres:
+        try:
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE facilities ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;"))
+                conn.execute(text("ALTER TABLE facilities ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;"))
+                conn.execute(text("ALTER TABLE facilities ALTER COLUMN geom DROP NOT NULL;"))
+                conn.commit()
+            logger.info("Verified facilities table has latitude and longitude columns.")
+        except Exception as alter_err:
+            logger.warning(f"Notice while checking facilities schema: {alter_err}")
 
     imported_count = 0
     updated_count = 0
