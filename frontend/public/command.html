@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Thermal Intelligence — GIS Command</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-500.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-700.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-600.css"/>
+<style>
+:root{
+  --bg:#eef2f5; --card:#ffffff; --ink:#0c1a2b; --muted:#5b7085; --line:#d9e2ea;
+  --teal:#0f766e; --teal-soft:#e6f4f3; --red:#dc2626; --red-soft:#fef2f2;
+  --amber:#b45309; --shadow:0 1px 2px rgba(12,26,43,.06),0 8px 24px -12px rgba(12,26,43,.18);
+  --mono:'IBM Plex Mono',ui-monospace,monospace; --disp:'Space Grotesk',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--disp); color:var(--ink); background:var(--bg);
+  background-image:url('https://image.qwenlm.ai/public_source/1034bf6a-6cd4-4a13-94fa-3c3383ba5212/1d7cee06b-cb90-4ac1-8579-9dae37dfc8d0.png');
+  background-size:900px; background-attachment:fixed;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+svg{display:block}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c3d0db;border-radius:8px}::-webkit-scrollbar-track{background:transparent}
+
+/* ============ TOP BAR ============ */
+.topbar{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:10px 18px;flex:none;z-index:50}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#0f766e,#0e7490);display:grid;place-items:center;color:#fff;box-shadow:var(--shadow)}
+.brand-titles h1{font-size:16px;font-weight:700;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.badge-id{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--teal);background:var(--teal-soft);border:1px solid #bcdedb;border-radius:6px;padding:2px 7px;letter-spacing:.08em}
+.brand-titles p{font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-top:2px}
+.mainnav{display:flex;gap:6px;margin:0 auto}
+.mainnav button{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;color:var(--muted);padding:8px 14px;border-radius:999px;border:1px solid transparent;transition:.2s}
+.mainnav button:hover{color:var(--ink);background:#f1f5f8}
+.mainnav button.active{color:var(--ink);background:#fff;border-color:var(--line);box-shadow:var(--shadow)}
+.mainnav button.active svg{color:var(--teal)}
+.top-status{display:flex;align-items:center;gap:8px}
+.live-chip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:6px 12px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}50%{box-shadow:0 0 0 5px rgba(34,197,94,0)}}
+.corridor-chip{font-family:var(--mono);font-size:10.5px;color:var(--muted);background:#f4f7fa;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.corridor-chip b{color:var(--teal);font-weight:600}
+
+/* ============ KPI STRIP ============ */
+.kpis{display:flex;align-items:stretch;gap:10px;padding:12px 18px 4px;flex-wrap:wrap;flex:none}
+.kpi{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 14px;box-shadow:var(--shadow);flex:1;min-width:150px}
+.kpi .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none}
+.kpi .lbl{font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+.kpi .val{font-family:var(--mono);font-size:17px;font-weight:600;line-height:1.15}
+.kpi.crit{background:var(--red-soft);border-color:#fecaca}
+.kpi.crit .val{color:var(--red)}
+.kpi-actions{display:flex;gap:8px;margin-left:auto}
+.btn{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;border-radius:10px;padding:9px 16px;transition:.2s;box-shadow:var(--shadow)}
+.btn.ghost{background:var(--card);border:1px solid #bcdedb;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.btn.solid{background:var(--ink);color:#fff}
+.btn.solid:hover{background:#1d3350}
+.btn.solid.running{opacity:.7;pointer-events:none}
+.btn.solid.running svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ CONSOLE GRID ============ */
+.console{flex:1;min-height:0;display:grid;grid-template-columns:300px 1fr 356px;gap:14px;padding:12px 18px 16px}
+.col{min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding-right:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;flex:none}
+.card-h{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);background:#fbfcfe}
+.card-h .t{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.card-h svg{color:var(--teal)}
+.card-h .spacer{margin-left:auto}
+.card-b{padding:14px}
+
+/* search */
+.searchbox{position:relative}
+.searchbox input{width:100%;font-family:var(--mono);font-size:11.5px;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:10px;background:#f7fafc;color:var(--ink);outline:none;transition:.2s}
+.searchbox input:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+.searchbox>svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search-drop{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:60;max-height:220px;overflow:auto;display:none}
+.search-drop button{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;font-size:11.5px;padding:8px 12px;border-bottom:1px solid #eef2f6}
+.search-drop button:last-child{border-bottom:none}
+.search-drop button:hover{background:var(--teal-soft)}
+.search-drop .co{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+/* chips */
+.chip-group{margin-top:12px}
+.chip-group .cg-lbl{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:500;border:1px solid var(--line);background:#f7fafc;border-radius:999px;padding:6px 11px;transition:.15s}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip:hover{border-color:#b6c6d3}
+.chip.off{opacity:.38;border-style:dashed;background:transparent}
+.chip.risk{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em}
+.chip.risk.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip.risk.on[data-risk="critical"]{background:var(--red);border-color:var(--red)}
+
+/* horizon */
+.horizon{display:flex;flex-direction:column;gap:6px}
+.horizon button{display:flex;align-items:center;gap:9px;text-align:left;font-size:12px;font-weight:500;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#fbfcfe;transition:.15s}
+.horizon button:hover{color:var(--ink)}
+.horizon button.on{color:var(--teal);background:var(--teal-soft);border-color:#9ed4cf;font-weight:700}
+.horizon button .rd{width:8px;height:8px;border-radius:50%;border:2px solid currentColor;flex:none}
+.horizon button.on .rd{background:currentColor}
+
+/* legend */
+.legend-toggle{width:100%;display:flex;align-items:center;gap:8px;padding:11px 14px;background:#fbfcfe}
+.legend-toggle .t{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.legend-toggle svg.chev{margin-left:auto;transition:.25s;color:var(--muted)}
+.legend-card.closed .chev{transform:rotate(-90deg)}
+.legend-card.closed .legend-body{display:none}
+.legend-row{display:flex;gap:11px;padding:8px 0;border-bottom:1px dashed #e6edf3}
+.legend-row:last-of-type{border-bottom:none}
+.legend-row .sw{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);margin-top:2px}
+.legend-row .sw.sq{border-radius:3px}
+.legend-row b{font-size:12.5px;font-weight:700;display:block}
+.legend-row span{font-size:11px;color:var(--muted)}
+.legend-note{margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--muted);background:#f4f7fa;border:1px dashed var(--line);border-radius:8px;padding:7px 10px}
+
+/* ============ MAP ============ */
+.map-card{display:flex;flex-direction:column;min-height:0}
+.map-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line);background:#fbfcfe}
+.tb-label{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
+.seg{display:flex;background:#eef2f6;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--muted);border-radius:8px;padding:6px 12px;transition:.15s}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--ink);color:#fff;box-shadow:var(--shadow)}
+.seg.styles button.on{background:var(--teal)}
+.tb-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn3d{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 13px;transition:.2s}
+.btn3d.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#mapShell{flex:1;min-height:0;position:relative;overflow:hidden;background:#dfe7ee}
+#map{position:absolute;inset:0;transition:transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:50% 20%}
+#mapShell.tilt #map{transform:perspective(1300px) rotateX(14deg) scale(1.03)}
+.leaflet-container{font-family:var(--disp)}
+#map.hide-labels .flabel{display:none}
+.flabel{background:#fff !important;border:1px solid var(--line) !important;border-radius:6px !important;box-shadow:var(--shadow);font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--ink);padding:2px 7px;white-space:nowrap}
+.flabel::before{display:none}
+.fac-sq{background:#22d3ee;border:2px solid #fff;box-shadow:0 0 0 1px rgba(12,26,43,.35),0 1px 4px rgba(12,26,43,.4);border-radius:3px}
+.pulse-wrap{position:relative;width:18px;height:18px}
+.pulse-core{position:absolute;inset:3px;border-radius:50%;background:#e11d48;border:2px solid #fff;box-shadow:0 0 8px rgba(225,29,72,.8)}
+.pulse-ring{position:absolute;inset:0;border-radius:50%;border:2px solid #e11d48;animation:ring 1.6s ease-out infinite}
+@keyframes ring{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.6);opacity:0}}
+.leaflet-popup-content-wrapper{border-radius:12px;box-shadow:var(--shadow);font-family:var(--disp)}
+.leaflet-popup-content{margin:12px 14px;font-size:12px;line-height:1.5}
+.pop-t{font-weight:700;font-size:12.5px;margin-bottom:4px}
+.pop-m{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.pop-tag{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.08em;border-radius:5px;padding:2px 6px;margin-bottom:6px;color:#fff}
+
+/* ============ ALERT QUEUE ============ */
+.queue-card{display:flex;flex-direction:column}
+.queue-badge{font-family:var(--mono);font-size:11px;font-weight:600;background:var(--red);color:#fff;border-radius:999px;min-width:22px;height:22px;display:grid;place-items:center;padding:0 7px}
+.alert-item{margin:12px;border:1px solid #fecaca;background:linear-gradient(180deg,#fff7f7,#fff);border-radius:12px;overflow:hidden;animation:slidein .4s ease}
+@keyframes slidein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.alert-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px dashed #fbd5d5}
+.tag-crit{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--red);background:#fee2e2;border:1px solid #fecaca;border-radius:999px;padding:4px 10px}
+.tag-crit .d{width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 1.4s infinite}
+.alert-time{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.alert-body{padding:12px}
+.alert-body h3{font-size:13px;font-weight:700;line-height:1.45;margin-bottom:7px}
+.alert-body p{font-size:11.5px;color:var(--muted);line-height:1.55}
+.response-box{margin:10px 12px;background:var(--teal-soft);border-left:3px solid var(--teal);border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.6;color:#0b4f4a}
+.response-box b{color:var(--teal)}
+.alert-foot{display:flex;gap:8px;padding:0 12px 12px}
+.abtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11.5px;font-weight:700;border-radius:9px;padding:8px 10px;transition:.15s}
+.abtn.zoom{background:var(--teal);color:#fff}
+.abtn.zoom:hover{background:#0b5d57}
+.abtn.ack{background:#fff;border:1px solid var(--line);color:var(--muted)}
+.abtn.ack:hover{color:var(--ink);border-color:#b6c6d3}
+.queue-empty{display:none;padding:34px 20px;text-align:center;color:var(--muted)}
+.queue-empty svg{margin:0 auto 10px;color:#9fb2c2}
+.queue-empty b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:4px}
+.queue-empty span{font-size:11px}
+.queue-card.ackd .queue-empty{display:block}
+.queue-card.ackd #alertWrap{display:none}
+.queue-card.flash{animation:flash 1s ease 2}
+@keyframes flash{0%,100%{box-shadow:var(--shadow)}50%{box-shadow:0 0 0 4px rgba(220,38,38,.25)}}
+
+/* ============ MODAL / TOAST ============ */
+.modal{position:fixed;inset:0;background:rgba(12,26,43,.45);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:200}
+.modal.open{display:flex}
+.modal-card{width:min(760px,92vw);max-height:80vh;background:#fff;border-radius:16px;box-shadow:0 24px 64px -16px rgba(12,26,43,.4);display:flex;flex-direction:column;overflow:hidden}
+.modal-card .card-h{flex:none}
+.modal-body{overflow:auto;padding:8px}
+.asset-row{display:flex;justify-content:space-between;gap:10px;padding:9px 14px;border-bottom:1px solid #eef2f6;font-size:12px}
+.asset-row:last-child{border-bottom:none}
+.asset-row .nm{font-weight:600}
+.asset-row .tp{font-family:var(--mono);font-size:10px;color:var(--teal);background:var(--teal-soft);border-radius:5px;padding:2px 8px;align-self:center;flex:none}
+.asset-row .cd{font-family:var(--mono);font-size:10px;color:var(--muted);align-self:center;flex:none}
+.iconbtn{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.iconbtn:hover{background:#eef2f6;color:var(--ink)}
+#toasts{position:fixed;top:70px;right:18px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{display:flex;align-items:center;gap:9px;background:var(--ink);color:#fff;font-size:12px;font-weight:500;border-radius:10px;padding:10px 14px;box-shadow:var(--shadow);animation:slidein .3s ease;max-width:340px}
+.toast svg{color:#5eead4;flex:none}
+.toast.ok svg{color:#4ade80}
+
+@media (max-width:1180px){.console{grid-template-columns:260px 1fr 320px}}
+@media (max-width:980px){
+  body{overflow:auto}
+  .console{grid-template-columns:1fr;height:auto}
+  .map-card{height:62vh}
+  .col{overflow:visible}
+  .mainnav{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ TOP BAR ══════════ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
+    <div class="brand-titles">
+      <h1>THERMAL INTELLIGENCE <span class="badge-id">SIH26162 • NTRD</span></h1>
+      <p>NASA FIRMS VIIRS • Facility Baselines • AI Explainability</p>
+    </div>
+  </div>
+  <nav class="mainnav">
+    <button id="navGis" class="active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>GIS Command</button>
+    <button id="navAlerts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>Threat Alerts</button>
+    <button id="navAssets"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Monitored Assets</button>
+  </nav>
+  <div class="top-status">
+    <span class="live-chip"><span class="live-dot"></span>SATELLITE FEED LIVE</span>
+    <span class="corridor-chip">Corridor: <b>Jamnagar, GJ</b></span>
+  </div>
+</header>
+
+<!-- ══════════ KPI STRIP ══════════ -->
+<section class="kpis">
+  <div class="kpi"><span class="ic" style="background:#fff7ed;color:#ea580c"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span><span><span class="lbl">Total Detections:</span><br/><span class="val" id="stTotal">–</span></span></div>
+  <div class="kpi crit"><span class="ic" style="background:#fee2e2;color:#dc2626"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span><span class="lbl">Critical Alerts:</span><br/><span class="val" id="stCrit">–</span></span></div>
+  <div class="kpi"><span class="ic" style="background:#fef2f2;color:#e11d48"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg></span><span><span class="lbl">Industrial Fires:</span><br/><span class="val" id="stInd">–</span></span></div>
+  <div class="kpi"><span class="ic" style="background:#f5f3ff;color:#a855f7"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg></span><span><span class="lbl">Routine Flares &amp; Sources:</span><br/><span class="val" id="stRout">–</span></span></div>
+  <div class="kpi"><span class="ic" style="background:#fff7ed;color:#f97316"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z"/><path d="M12 22v-3"/></svg></span><span><span class="lbl">Wildfires:</span><br/><span class="val" id="stWild">–</span></span></div>
+  <div class="kpi"><span class="ic" style="background:#fefce8;color:#ca8a04"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span><span><span class="lbl">Agri Burns:</span><br/><span class="val" id="stAgri">–</span></span></div>
+  <div class="kpi"><span class="ic" style="background:#ecfeff;color:#0891b2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg></span><span><span class="lbl">Assets Monitored:</span><br/><span class="val" id="stAsset">–</span></span></div>
+  <div class="kpi-actions">
+    <button class="btn ghost" id="btnDemo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>Load Demo Scenarios</button>
+    <button class="btn solid" id="btnPipe"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Run Pipeline</button>
+  </div>
+</section>
+
+<!-- ══════════ CONSOLE ══════════ -->
+<main class="console">
+
+  <!-- LEFT COLUMN -->
+  <aside class="col">
+    <section class="card">
+      <div class="card-h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span class="t">Filters</span></div>
+      <div class="card-b">
+        <div class="searchbox">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="searchInput" placeholder="Search facility or coordinate…" autocomplete="off"/>
+          <div class="search-drop" id="searchDrop"></div>
+        </div>
+        <div class="chip-group">
+          <div class="cg-lbl">Source Class</div>
+          <div class="chips" id="catChips">
+            <button class="chip" data-cat="industrial"><span class="dot" style="background:#e11d48"></span>Industrial Fire</button>
+            <button class="chip" data-cat="persistent"><span class="dot" style="background:#0ea5e9"></span>Persistent Source</button>
+            <button class="chip" data-cat="flare"><span class="dot" style="background:#a855f7"></span>Gas Flare</button>
+            <button class="chip" data-cat="wildfire"><span class="dot" style="background:#f97316"></span>Wildfire</button>
+            <button class="chip" data-cat="agri"><span class="dot" style="background:#eab308"></span>Agri Burning</button>
+            <button class="chip" data-cat="unknown"><span class="dot" style="background:#94a3b8"></span>Unknown</button>
+          </div>
+        </div>
+        <div class="chip-group">
+          <div class="cg-lbl">Risk Level</div>
+          <div class="chips" id="riskChips">
+            <button class="chip risk on" data-risk="critical">CRITICAL</button>
+            <button class="chip risk on" data-risk="high">HIGH</button>
+            <button class="chip risk on" data-risk="medium">MEDIUM</button>
+            <button class="chip risk on" data-risk="low">LOW</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span class="t">Time Horizon</span></div>
+      <div class="card-b">
+        <div class="horizon" id="horizon">
+          <button data-h="today"><span class="rd"></span>Today (Live)</button>
+          <button data-h="3d"><span class="rd"></span>Past 3 Days</button>
+          <button data-h="7d"><span class="rd"></span>7 Days</button>
+          <button data-h="30d"><span class="rd"></span>30 Days (Full Baseline)</button>
+          <button data-h="all" class="on"><span class="rd"></span>All Records</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card legend-card" id="legendCard">
+      <button class="legend-toggle" id="legendToggle">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--teal)"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+        <span class="t">Intelligence Legend</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="card-b legend-body">
+        <div class="legend-row"><span class="sw" style="background:#e11d48"></span><div><b>Industrial Fire / Hazard</b><span>Sudden spike (&gt;2.5x baseline)</span></div></div>
+        <div class="legend-row"><span class="sw" style="background:#a855f7"></span><div><b>Routine Gas Flare</b><span>Nighttime persistent flaring</span></div></div>
+        <div class="legend-row"><span class="sw" style="background:#0ea5e9"></span><div><b>Persistent Industrial Source</b><span>Process heat / cracker unit</span></div></div>
+        <div class="legend-row"><span class="sw" style="background:#f97316"></span><div><b>Wildfire Cluster</b><span>Vegetative / forest spread</span></div></div>
+        <div class="legend-row"><span class="sw" style="background:#eab308"></span><div><b>Agricultural Burning</b><span>Seasonal crop residue clearing</span></div></div>
+        <div class="legend-row"><span class="sw sq" style="background:#22d3ee"></span><div><b>Industrial Facility Context</b><span>OSM Refinery / Plant</span></div></div>
+        <div class="legend-note">Circle radius scales with Fire Radiative Power (MW)</div>
+      </div>
+    </section>
+  </aside>
+
+  <!-- MAP -->
+  <section class="card map-card">
+    <div class="map-toolbar">
+      <span class="tb-label">THEATRE</span>
+      <div class="seg" id="theatreSeg">
+        <button class="on" data-th="all"> All India</button>
+        <button data-th="gujarat">Gujarat (Jamnagar)</button>
+        <button data-th="korba">Korba–Singrauli</button>
+        <button data-th="jharia">Jharia Coalfields</button>
+      </div>
+      <div class="tb-right">
+        <div class="seg styles" id="styleSeg">
+          <button class="on" data-st="optical"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10a7.31 7.31 0 0 0 10 10Z"/><path d="m9 15 3-3"/><path d="M17 13a6 6 0 0 0-6-6"/><path d="M21 13A10 10 0 0 0 11 3"/></svg>Satellite Optical</button>
+          <button data-st="relief"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>Hills &amp; Relief</button>
+          <button data-st="dark"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Tactical Dark</button>
+        </div>
+        <button class="btn3d" id="btn3d"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>3D View</button>
+      </div>
+    </div>
+    <div id="mapShell"><div id="map"></div></div>
+  </section>
+
+  <!-- RIGHT COLUMN -->
+  <aside class="col">
+    <section class="card queue-card" id="queueCard">
+      <div class="card-h">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--red)"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <span class="t">Tactical Alert Queue</span>
+        <span class="spacer"></span>
+        <span class="queue-badge" id="queueBadge">1</span>
+      </div>
+      <div id="alertWrap">
+        <div class="alert-item" id="critAlert">
+          <div class="alert-head">
+            <span class="tag-crit"><span class="d"></span>CRITICAL</span>
+            <span class="alert-time">04:29 PM</span>
+          </div>
+          <div class="alert-body">
+            <h3>CRITICAL: Uncontained Thermal Anomaly at Nayara Energy Vadinar Refinery</h3>
+            <p>Severe thermal signature (36.4 MW) detected 164m from Nayara Energy Vadinar Refinery. FRP is 3.6x higher than…</p>
+          </div>
+          <div class="response-box"><b>Response Action:</b> Dispatch onsite emergency industrial fire response team, initiate flare header inspection, and notify district disaster management authority.</div>
+          <div class="alert-foot">
+            <button class="abtn zoom" id="btnZoomThreat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/></svg>Zoom to Threat</button>
+            <button class="abtn ack" id="btnAck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>Acknowledge</button>
+          </div>
+        </div>
+      </div>
+      <div class="queue-empty">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+        <b>Queue clear</b><span>All threats acknowledged. Monitoring continues.</span>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<!-- ASSETS MODAL -->
+<div class="modal" id="assetModal">
+  <div class="modal-card">
+    <div class="card-h">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--teal)"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg>
+      <span class="t">Monitored Assets — <span id="assetCount"></span></span>
+      <span class="spacer"></span>
+      <button class="iconbtn" id="assetClose"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="assetList"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ---------- seeded rng ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+var rng=mulberry32(42);
+function jr(n){return (rng()-0.5)*n}
+
+/* ---------- facilities (60) ---------- */
+var NAMED=[
+["Reliance Jamnagar Refinery Complex (DTA & SEZ)",22.470,70.110,"Refinery"],
+["Nayara Energy Vadinar Refinery",22.329,69.672,"Refinery"],
+["IOCL Panipat Refinery & Petrochemical Complex",29.752,76.770,"Refinery"],
+["IOCL Barauni Refinery",25.492,86.220,"Refinery"],
+["IOCL Haldia Refinery",22.033,88.060,"Refinery"],
+["IOCL Paradip Refinery",20.260,86.610,"Refinery"],
+["HPCL Visakhapatnam Refinery",17.683,83.270,"Refinery"],
+["MRPL Mangalore Refinery",12.920,74.800,"Refinery"],
+["BPCL Kochi Refinery (Ambalamugal)",9.987,76.710,"Refinery"],
+["IOCL Guwahati Refinery",26.180,91.750,"Refinery"],
+["IOCL Bongaigaon Refinery",26.550,90.560,"Refinery"],
+["IOCL Digboi Refinery",27.390,95.630,"Refinery"],
+["IOCL Mathura Refinery",27.480,77.680,"Refinery"],
+["BPCL Mumbai Refinery (Mahul)",19.040,72.880,"Refinery"],
+["HPCL Mumbai Refinery",18.960,72.840,"Refinery"],
+["CPCL Chennai Refinery",13.170,80.300,"Refinery"],
+["IOCL Gujarat Refinery (Koyali)",22.270,73.950,"Refinery"],
+["HPCL Bhatinda Refinery",30.200,74.950,"Refinery"],
+["IOCL Bina Refinery",24.050,78.950,"Refinery"],
+["Numaligarh Refinery",26.720,93.680,"Refinery"],
+["ONGC Hazira Gas Processing",21.110,72.610,"Plant"],
+["NTPC Korba Super Thermal",22.350,82.750,"Power"],
+["Vindhyachal STPS (Singrauli)",24.110,82.900,"Power"],
+["BCCL Jharia Coalfields",23.670,86.420,"Mine"]];
+var facilities=NAMED.map(function(n,i){return{name:n[0],lat:n[1],lng:n[2],type:n[3],named:true,id:i+1}});
+var HUBS=[[22.4,70.2],[23.6,86.4],[22.3,82.8],[26.2,91.8],[19.0,72.9],[28.6,77.2],[30.7,76.8],[21.2,72.7],[17.7,83.3],[13.1,80.3],[22.9,73.9],[25.5,85.1]];
+var TYPES=["Gas Terminal","Power Station","Steel Plant","Chemical Works","Cement Works","Petrochem Unit"];
+var ai=0;
+while(facilities.length<60){
+  var hb=HUBS[ai%HUBS.length], tp=TYPES[ai%TYPES.length];
+  facilities.push({name:tp+" — Asset G-"+(25+ai), lat:hb[0]+jr(1.6), lng:hb[1]+jr(1.8), type:tp, named:false, id:facilities.length+1});
+  ai++;
+}
+
+/* ---------- detections (61) ---------- */
+var detections=[];
+var AGES=["today","3d","7d","30d"];
+detections.push({cat:"industrial",risk:"critical",frp:36.4,age:"today",lat:22.3315,lng:69.6745,note:"Uncontained thermal anomaly — 3.6x baseline"});
+var FL_R=["high","medium","medium","medium","medium","medium","low","low","low","low","high","medium"];
+for(var fI=0;fI<12;fI++){var bN=NAMED[fI%NAMED.length];
+  detections.push({cat:"flare",risk:FL_R[fI],frp:8+rng()*20,age:AGES[fI%4],lat:bN[1]+jr(.08),lng:bN[2]+jr(.08),note:"Nighttime persistent flaring"});}
+var PE_R=["medium","medium","medium","medium","medium","low","low","low","low","low","low","low","low"];
+for(var pI=0;pI<13;pI++){var bP=NAMED[(pI+11)%NAMED.length];
+  detections.push({cat:"persistent",risk:PE_R[pI],frp:4+rng()*8,age:AGES[(pI+1)%4],lat:bP[1]+jr(.05),lng:bP[2]+jr(.05),note:"Process heat / cracker unit"});}
+var WF_C=[[30.1,79.1],[31.2,77.2],[25.9,94.5],[23.7,92.7],[22.5,80.5],[20.5,84.5]];
+var WF_R=["high","high","medium","medium","medium","medium"];
+for(var wI=0;wI<6;wI++){detections.push({cat:"wildfire",risk:WF_R[wI],frp:6+rng()*34,age:AGES[wI%4],lat:WF_C[wI][0]+jr(.4),lng:WF_C[wI][1]+jr(.4),note:"Vegetative / forest spread"});}
+var AG_R=["medium","medium","medium","medium","medium","medium","medium","low","low","low","low","low","low","low","low"];
+for(var gI=0;gI<15;gI++){detections.push({cat:"agri",risk:AG_R[gI],frp:2+rng()*6,age:AGES[gI%4],lat:29.2+rng()*2.2,lng:74.6+rng()*4.8,note:"Seasonal crop residue clearing"});}
+var UN_R=["medium","medium","medium","medium","low","low","low","low","low","low","low","low","low","low"];
+for(var uI=0;uI<14;uI++){detections.push({cat:"unknown",risk:UN_R[uI],frp:1+rng()*5,age:AGES[(uI+2)%4],lat:12+rng()*18,lng:72+rng()*20,note:"Unclassified thermal signature"});}
+
+/* ---------- stats ---------- */
+function cnt(fn){return detections.filter(fn).length}
+document.getElementById('stTotal').textContent=detections.length;
+document.getElementById('stCrit').textContent=cnt(function(d){return d.risk==='critical'});
+document.getElementById('stInd').textContent=cnt(function(d){return d.cat==='industrial'});
+document.getElementById('stRout').textContent=cnt(function(d){return d.cat==='flare'||d.cat==='persistent'});
+document.getElementById('stWild').textContent=cnt(function(d){return d.cat==='wildfire'});
+document.getElementById('stAgri').textContent=cnt(function(d){return d.cat==='agri'});
+document.getElementById('stAsset').textContent=facilities.length;
+
+/* ---------- map ---------- */
+var CATMETA={
+ industrial:{label:"Industrial Fire / Hazard",color:"#e11d48"},
+ flare:{label:"Routine Gas Flare",color:"#a855f7"},
+ persistent:{label:"Persistent Industrial Source",color:"#0ea5e9"},
+ wildfire:{label:"Wildfire Cluster",color:"#f97316"},
+ agri:{label:"Agricultural Burning",color:"#eab308"},
+ unknown:{label:"Unknown",color:"#94a3b8"}};
+var map=L.map('map',{zoomControl:true,attributionControl:false}).setView([22.6,79.5],5);
+var TILES={
+ optical:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}),
+ relief:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:16}),
+ dark:L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19})};
+var curStyle='optical'; TILES.optical.addTo(map);
+map.on('zoomend',function(){var el=document.getElementById('map');el.classList.toggle('hide-labels',map.getZoom()<7)});
+document.getElementById('map').classList.add('hide-labels');
+
+var facilityLayer=L.layerGroup().addTo(map);
+var facMarkers={};
+facilities.forEach(function(fc){
+  var mk=L.marker([fc.lat,fc.lng],{icon:L.divIcon({className:'fac-sq',iconSize:[10,10],iconAnchor:[5,5]}),pane:'markerPane'});
+  mk.bindPopup('<div class="pop-t">'+fc.name+'</div><span class="pop-tag" style="background:#0891b2">'+fc.type.toUpperCase()+'</span><div class="pop-m">OSM Refinery / Plant • Asset #'+fc.id+'<br/>'+fc.lat.toFixed(3)+', '+fc.lng.toFixed(3)+'</div>');
+  if(fc.named){mk.bindTooltip(fc.name,{permanent:true,direction:'right',className:'flabel',offset:[7,0]});}
+  facMarkers[fc.id]=mk; facilityLayer.addLayer(mk);
+});
+
+var detLayer=L.layerGroup().addTo(map);
+var state={cats:{industrial:true,persistent:true,flare:true,wildfire:true,agri:true,unknown:true},
+ risks:{critical:true,high:true,medium:true,low:true}, horizon:'all'};
+var HSET={today:['today'],  '3d':['today','3d'], '7d':['today','3d','7d'], '30d':['today','3d','7d','30d'], all:AGES};
+var critMarkerRef=null;
+
+function renderDetections(){
+  detLayer.clearLayers(); critMarkerRef=null;
+  var allow=HSET[state.horizon];
+  detections.forEach(function(dt){
+    if(!state.cats[dt.cat]||!state.risks[dt.risk]||allow.indexOf(dt.age)<0)return;
+    var meta=CATMETA[dt.cat];
+    var pop='<div class="pop-t">'+meta.label+'</div><span class="pop-tag" style="background:'+meta.color+'">'+dt.risk.toUpperCase()+'</span><div class="pop-m">FRP: '+dt.frp.toFixed(1)+' MW • Age: '+dt.age+'<br/>'+dt.note+'<br/>'+dt.lat.toFixed(4)+', '+dt.lng.toFixed(4)+'</div>';
+    if(dt.risk==='critical'){
+      var cm=L.marker([dt.lat,dt.lng],{icon:L.divIcon({className:'',html:'<div class="pulse-wrap"><span class="pulse-ring"></span><span class="pulse-core"></span></div>',iconSize:[18,18],iconAnchor:[9,9]})});
+      cm.bindPopup(pop); detLayer.addLayer(cm); critMarkerRef=cm;
+    }else{
+      var rad=Math.min(16,4+Math.sqrt(dt.frp)*1.9);
+      var cmm=L.circleMarker([dt.lat,dt.lng],{radius:rad,color:'#ffffff',weight:2,fillColor:meta.color,fillOpacity:.92});
+      cmm.bindPopup(pop); cmm.bindTooltip(meta.label+' — '+dt.frp.toFixed(1)+' MW',{direction:'top',offset:[0,-4]});
+      detLayer.addLayer(cmm);
+    }
+  });
+}
+renderDetections();
+
+/* ---------- toasts ---------- */
+function toast(msg,ok){
+  var t=document.createElement('div'); t.className='toast'+(ok?' ok':'');
+  t.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ok?'<path d="M20 6 9 17l-5-5"/>':'<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>')+'</svg><span>'+msg+'</span>';
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(function(){t.remove()},400)},3200);
+}
+
+/* ---------- filters ---------- */
+document.querySelectorAll('#catChips .chip').forEach(function(ch){
+  ch.addEventListener('click',function(){
+    var k=ch.dataset.cat; state.cats[k]=!state.cats[k];
+    ch.classList.toggle('off',!state.cats[k]); renderDetections();
+  });
+});
+document.querySelectorAll('#riskChips .chip').forEach(function(ch){
+  ch.addEventListener('click',function(){
+    var k=ch.dataset.risk; state.risks[k]=!state.risks[k];
+    ch.classList.toggle('on',state.risks[k]); renderDetections();
+  });
+});
+document.querySelectorAll('#horizon button').forEach(function(bt){
+  bt.addEventListener('click',function(){
+    document.querySelectorAll('#horizon button').forEach(function(x){x.classList.remove('on')});
+    bt.classList.add('on'); state.horizon=bt.dataset.h; renderDetections();
+  });
+});
+
+/* ---------- theatres / styles / 3d ---------- */
+var THEATRES={all:[[22.6,79.5],5],gujarat:[[22.42,70.1],9],korba:[[23.2,82.8],8],jharia:[[23.67,86.42],9]};
+document.querySelectorAll('#theatreSeg button').forEach(function(bt){
+  bt.addEventListener('click',function(){
+    document.querySelectorAll('#theatreSeg button').forEach(function(x){x.classList.remove('on')});
+    bt.classList.add('on'); var t=THEATRES[bt.dataset.th]; map.flyTo(t[0],t[1],{duration:1.2});
+  });
+});
+document.querySelectorAll('#styleSeg button').forEach(function(bt){
+  bt.addEventListener('click',function(){
+    document.querySelectorAll('#styleSeg button').forEach(function(x){x.classList.remove('on')});
+    bt.classList.add('on'); map.removeLayer(TILES[curStyle]); curStyle=bt.dataset.st; TILES[curStyle].addTo(map);
+    toast('Basemap switched: '+bt.textContent.trim());
+  });
+});
+document.getElementById('btn3d').addEventListener('click',function(){
+  this.classList.toggle('on');
+  document.getElementById('mapShell').classList.toggle('tilt',this.classList.contains('on'));
+  toast(this.classList.contains('on')?'3D terrain tilt enabled (demo)':'3D view disabled');
+  setTimeout(function(){map.invalidateSize()},650);
+});
+
+/* ---------- search ---------- */
+var sIn=document.getElementById('searchInput'), sDrop=document.getElementById('searchDrop');
+sIn.addEventListener('input',function(){
+  var q=sIn.value.trim().toLowerCase(); sDrop.innerHTML='';
+  if(!q){sDrop.style.display='none';return}
+  var m=facilities.filter(function(fc){return fc.name.toLowerCase().indexOf(q)>=0}).slice(0,6);
+  if(!m.length){sDrop.style.display='none';return}
+  m.forEach(function(fc){
+    var b=document.createElement('button');
+    b.innerHTML='<span>'+fc.name+'</span><span class="co">'+fc.lat.toFixed(2)+', '+fc.lng.toFixed(2)+'</span>';
+    b.addEventListener('mousedown',function(){flyToFac(fc);sDrop.style.display='none';sIn.value=fc.name;});
+    sDrop.appendChild(b);
+  });
+  sDrop.style.display='block';
+});
+sIn.addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  var cm=sIn.value.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+  if(cm){map.flyTo([parseFloat(cm[1]),parseFloat(cm[2])],10);toast('Jumped to coordinate '+cm[1]+', '+cm[2]);}
+  else{var m=facilities.filter(function(fc){return fc.name.toLowerCase().indexOf(sIn.value.trim().toLowerCase())>=0})[0];if(m)flyToFac(m);}
+  sDrop.style.display='none';
+});
+function flyToFac(fc){map.flyTo([fc.lat,fc.lng],12,{duration:1.1});setTimeout(function(){facMarkers[fc.id].openPopup()},1200);}
+
+/* ---------- pipeline / demo ---------- */
+var btnPipe=document.getElementById('btnPipe');
+btnPipe.addEventListener('click',function(){
+  btnPipe.classList.add('running'); var old=btnPipe.innerHTML; btnPipe.innerHTML=btnPipe.innerHTML.replace('Run Pipeline','Running…');
+  toast('Ingesting NASA FIRMS VIIRS granules…');
+  setTimeout(function(){toast('Cross-matching facility baselines…')},1100);
+  setTimeout(function(){toast('Scoring explainability features…')},2200);
+  setTimeout(function(){
+    btnPipe.classList.remove('running'); btnPipe.innerHTML=old;
+    renderDetections(); toast('Pipeline complete — '+detections.length+' detections, 1 critical.',true);
+  },3300);
+});
+document.getElementById('btnDemo').addEventListener('click',function(){
+  state.horizon='all';
+  document.querySelectorAll('#horizon button').forEach(function(x){x.classList.toggle('on',x.dataset.h==='all')});
+  Object.keys(state.cats).forEach(function(k){state.cats[k]=true});
+  document.querySelectorAll('#catChips .chip').forEach(function(c){c.classList.remove('off')});
+  Object.keys(state.risks).forEach(function(k){state.risks[k]=true});
+  document.querySelectorAll('#riskChips .chip').forEach(function(c){c.classList.add('on')});
+  renderDetections(); map.flyTo([22.6,79.5],5);
+  toast('Demo scenarios loaded — '+detections.length+' detections / '+facilities.length+' assets.',true);
+});
+
+/* ---------- alert queue ---------- */
+document.getElementById('btnZoomThreat').addEventListener('click',function(){
+  map.flyTo([22.329,69.672],12,{duration:1.3});
+  setTimeout(function(){if(critMarkerRef)critMarkerRef.openPopup()},1400);
+});
+document.getElementById('btnAck').addEventListener('click',function(){
+  document.getElementById('alertWrap').style.display='none';
+  document.getElementById('queueCard').classList.add('ackd');
+  document.getElementById('queueBadge').style.display='none';
+  toast('Critical alert acknowledged & logged.',true);
+});
+
+/* ---------- legend ---------- */
+document.getElementById('legendToggle').addEventListener('click',function(){
+  document.getElementById('legendCard').classList.toggle('closed');
+  setTimeout(function(){map.invalidateSize()},80);
+});
+
+/* ---------- nav / modal ---------- */
+var navBtns=[document.getElementById('navGis'),document.getElementById('navAlerts'),document.getElementById('navAssets')];
+function setNav(b){navBtns.forEach(function(x){x.classList.toggle('active',x===b)})}
+navBtns[0].addEventListener('click',function(){setNav(navBtns[0]);document.getElementById('assetModal').classList.remove('open');map.invalidateSize();});
+navBtns[1].addEventListener('click',function(){setNav(navBtns[1]);var q=document.getElementById('queueCard');q.classList.remove('flash');void q.offsetWidth;q.classList.add('flash');q.scrollIntoView({behavior:'smooth',block:'nearest'});});
+navBtns[2].addEventListener('click',function(){
+  setNav(navBtns[2]);
+  var list=document.getElementById('assetList'); list.innerHTML='';
+  facilities.forEach(function(fc){
+    var r=document.createElement('div'); r.className='asset-row';
+    r.innerHTML='<span class="nm">'+fc.name+'</span><span class="tp">'+fc.type.toUpperCase()+'</span><span class="cd">'+fc.lat.toFixed(2)+', '+fc.lng.toFixed(2)+'</span>';
+    list.appendChild(r);
+  });
+  document.getElementById('assetCount').textContent=facilities.length+' facilities';
+  document.getElementById('assetModal').classList.add('open');
+});
+document.getElementById('assetClose').addEventListener('click',function(){document.getElementById('assetModal').classList.remove('open');setNav(navBtns[0]);});
+document.getElementById('assetModal').addEventListener('click',function(e){if(e.target===this){this.classList.remove('open');setNav(navBtns[0]);}});
+
+setTimeout(function(){map.invalidateSize()},300);
+</script>
+</body>
+</html>
