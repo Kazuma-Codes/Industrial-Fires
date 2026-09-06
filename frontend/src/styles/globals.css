@@ -76,6 +76,80 @@ svg {
   display: none !important;
 }
 
+.hud-hidden .console {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.hud-hidden .map-card {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Fullscreen floating overlay drawers */
+.hud-hidden .col-left.fs-drawer {
+  position: absolute !important;
+  top: 10px !important;
+  bottom: 10px !important;
+  left: 10px !important;
+  width: 300px !important;
+  min-width: 300px !important;
+  max-width: 300px !important;
+  height: calc(100% - 20px) !important;
+  z-index: 70 !important;
+  box-shadow: 0 20px 48px -10px rgba(12, 26, 43, 0.45) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  padding: 10px !important;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease !important;
+}
+
+.hud-hidden .col-left.fs-drawer.collapsed {
+  transform: translateX(calc(-100% - 20px)) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.hud-hidden .col-left.fs-drawer.expanded {
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.hud-hidden .col-right.fs-drawer {
+  position: absolute !important;
+  top: 10px !important;
+  bottom: 10px !important;
+  right: 10px !important;
+  width: 350px !important;
+  min-width: 350px !important;
+  max-width: 350px !important;
+  height: calc(100% - 20px) !important;
+  z-index: 70 !important;
+  box-shadow: 0 20px 48px -10px rgba(12, 26, 43, 0.45) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  padding: 10px !important;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease !important;
+}
+
+.hud-hidden .col-right.fs-drawer.collapsed {
+  transform: translateX(calc(100% + 20px)) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.hud-hidden .col-right.fs-drawer.expanded {
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
 /* ============ TOP BAR ============ */
 .topbar {
   background: var(--card);
@@ -330,14 +404,16 @@ svg {
   to { transform: rotate(360deg); }
 }
 
-/* ============ CONSOLE GRID ============ */
+/* ============ CONSOLE LAYOUT ============ */
 .console {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 280px 1fr 340px;
+  display: flex;
   gap: 12px;
   padding: 8px 18px 14px;
+  position: relative;
+  overflow: hidden;
+  transition: padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .col {
@@ -347,6 +423,59 @@ svg {
   flex-direction: column;
   gap: 12px;
   padding-right: 2px;
+}
+
+.col-left {
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  flex: none;
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              margin 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity 0.25s ease,
+              transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 20;
+}
+
+.col-right {
+  width: 340px;
+  min-width: 340px;
+  max-width: 340px;
+  flex: none;
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              margin 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity 0.25s ease,
+              transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 20;
+}
+
+/* Normal mode collapsed states */
+.col-left.collapsed:not(.fs-drawer) {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  margin-left: -12px !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  transform: translateX(-100%);
+}
+
+.col-right.collapsed:not(.fs-drawer) {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  margin-right: -12px !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  transform: translateX(100%);
 }
 
 .card {
@@ -656,11 +785,117 @@ svg {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1;
+  min-width: 0;
+  flex: 1 1 0%;
   position: relative;
   overflow: hidden;
   isolation: isolate;
   z-index: 1;
+  transition: border-radius 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+/* ============ RECTANGULAR DRAWER EDGE TABS (< and > signs) ============ */
+.drawer-edge-tab {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 75;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(12, 26, 43, 0.16);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+              right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+              background 0.15s ease,
+              color 0.15s ease,
+              box-shadow 0.2s ease,
+              transform 0.2s ease;
+  user-select: none;
+}
+
+.drawer-edge-tab:hover {
+  background: var(--ink);
+  color: #ffffff;
+  border-color: var(--ink);
+  box-shadow: 0 6px 20px rgba(12, 26, 43, 0.3);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.drawer-edge-tab:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+/* Left edge tab */
+.drawer-edge-tab.left {
+  left: 0;
+  width: 22px;
+  height: 56px;
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+/* In normal mode when left is expanded */
+.drawer-edge-tab.left.expanded:not(.fs-tab) {
+  left: calc(18px + 280px);
+}
+
+/* In normal mode when left is collapsed */
+.drawer-edge-tab.left.collapsed:not(.fs-tab) {
+  left: 0;
+}
+
+/* In fullscreen mode when left drawer is open */
+.drawer-edge-tab.left.expanded.fs-tab {
+  left: 318px; /* 10px margin + 300px width + 8px */
+}
+
+/* In fullscreen mode when left drawer is collapsed */
+.drawer-edge-tab.left.collapsed.fs-tab {
+  left: 0;
+}
+
+/* Right edge tab */
+.drawer-edge-tab.right {
+  right: 0;
+  width: 22px;
+  height: 56px;
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+/* In normal mode when right is expanded */
+.drawer-edge-tab.right.expanded:not(.fs-tab) {
+  right: calc(18px + 340px);
+}
+
+/* In normal mode when right is collapsed */
+.drawer-edge-tab.right.collapsed:not(.fs-tab) {
+  right: 0;
+}
+
+/* In fullscreen mode when right drawer is open */
+.drawer-edge-tab.right.expanded.fs-tab {
+  right: 368px; /* 10px margin + 350px width + 8px */
+}
+
+/* In fullscreen mode when right drawer is collapsed */
+.drawer-edge-tab.right.collapsed.fs-tab {
+  right: 0;
+}
+
+.tab-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .map-toolbar {
@@ -1196,8 +1431,21 @@ svg {
 }
 
 @media (max-width: 1180px) {
-  .console {
-    grid-template-columns: 250px 1fr 310px;
+  .col-left {
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+  }
+  .col-right {
+    width: 310px;
+    min-width: 310px;
+    max-width: 310px;
+  }
+  .drawer-edge-tab.left.expanded:not(.fs-tab) {
+    left: calc(18px + 250px);
+  }
+  .drawer-edge-tab.right.expanded:not(.fs-tab) {
+    right: calc(18px + 310px);
   }
 }
 
@@ -1206,14 +1454,21 @@ svg {
     overflow: auto;
   }
   .console {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     height: auto;
+    overflow: visible;
+  }
+  .col-left, .col-right {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
   }
   .map-card {
     height: 62vh;
+    min-height: 400px;
   }
-  .col {
-    overflow: visible;
+  .drawer-edge-tab {
+    display: none !important;
   }
   .mainnav {
     display: none;

@@ -32,6 +32,8 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 // Dynamic import for LeafletMap with SSR disabled
@@ -89,6 +91,8 @@ export default function GisCommandCenter() {
   const [basemapStyle, setBasemapStyle] = useState<"optical" | "relief" | "dark">("optical");
   const [is3D, setIs3D] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false); // Fullscreen / HUD toggle
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false); // Collapsible left sidebar
+  const [isRightCollapsed, setIsRightCollapsed] = useState(false); // Collapsible right sidebar
 
   // Search & Autocomplete
   const [searchQuery, setSearchQuery] = useState("");
@@ -253,12 +257,64 @@ export default function GisCommandCenter() {
 
   // Toggle Focus / Fullscreen Mode
   const handleToggleFocusMode = () => {
-    const next = !isFocusMode;
-    setIsFocusMode(next);
-    addToast(next ? "Focus Mode: HUD Hidden (Fullscreen Map)" : "HUD Restored");
-    setTimeout(() => {
-      if (mapRef.current) mapRef.current.invalidateSize();
-    }, 300);
+    setIsFocusMode((prev) => {
+      const next = !prev;
+      if (next) {
+        // When entering full screen mode: push left and right cards to the sides!
+        setIsLeftCollapsed(true);
+        setIsRightCollapsed(true);
+        addToast("Fullscreen Mode: Sidebars pushed to sides. Tap edge arrows to toggle panels.");
+      } else {
+        // When exiting full screen mode: restore normal card layout!
+        setIsLeftCollapsed(false);
+        setIsRightCollapsed(false);
+        addToast("Standard Mode: Restored normal card layout.");
+      }
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 50);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 200);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 350);
+      return next;
+    });
+  };
+
+  // Toggle Left Sidebar (Filters & Intelligence)
+  const handleToggleLeftSidebar = () => {
+    setIsLeftCollapsed((prev) => {
+      const next = !prev;
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 50);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 200);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 350);
+      return next;
+    });
+  };
+
+  // Toggle Right Sidebar (Tactical Alert Queue)
+  const handleToggleRightSidebar = () => {
+    setIsRightCollapsed((prev) => {
+      const next = !prev;
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 50);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 200);
+      setTimeout(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+      }, 350);
+      return next;
+    });
   };
 
   // Load Demo Scenarios
@@ -516,10 +572,36 @@ export default function GisCommandCenter() {
         </div>
       </section>
 
-      {/* ══════════ CONSOLE GRID ══════════ */}
-      <main className="console">
+      {/* ══════════ CONSOLE ══════════ */}
+      <main className="console relative">
+        {/* Left Edge Drawer Toggle Tab (< and > signs) */}
+        <button
+          className={`drawer-edge-tab left ${isLeftCollapsed ? "collapsed" : "expanded"} ${
+            isFocusMode ? "fs-tab" : ""
+          }`}
+          onClick={handleToggleLeftSidebar}
+          title={
+            isLeftCollapsed
+              ? "Show Filters & Intelligence (Normal Size)"
+              : "Shrink / Push to Left Side"
+          }
+          aria-label={isLeftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
+        >
+          <span className="tab-pill">
+            {isLeftCollapsed ? (
+              <ChevronRight className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronLeft className="w-3.5 h-3.5" />
+            )}
+          </span>
+        </button>
+
         {/* LEFT COLUMN: Filters & Intelligence */}
-        <aside className="col">
+        <aside
+          className={`col col-left ${isLeftCollapsed ? "collapsed" : "expanded"} ${
+            isFocusMode ? "fs-drawer" : ""
+          }`}
+        >
           {/* Filters Card */}
           <section className="card">
             <div className="card-h">
@@ -537,6 +619,14 @@ export default function GisCommandCenter() {
                 <path d="M10 18h4" />
               </svg>
               <span className="t">Filters</span>
+              <span className="spacer" />
+              <button
+                className="iconbtn"
+                onClick={handleToggleLeftSidebar}
+                title="Shrink sidebar to left side"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="card-b">
               {/* Searchbox */}
@@ -867,25 +957,29 @@ export default function GisCommandCenter() {
                 </button>
               </div>
 
-              {/* Fullscreen / Focus Mode Button (Placed right before 3D View) */}
+              {/* Fullscreen Mode Button (Placed right before 3D View) */}
               <button
                 className={`btn-hud ${isFocusMode ? "on" : ""}`}
                 onClick={handleToggleFocusMode}
-                title="Toggle Fullscreen Focus Mode (Hide/Show topbar & KPI cards)"
+                title={
+                  isFocusMode
+                    ? "Exit Fullscreen Mode (Restore topbar, KPIs & sidebars)"
+                    : "Fullscreen Mode (Push sidebars to edges & maximize map)"
+                }
               >
                 {isFocusMode ? (
                   <>
                     <Minimize2 className="w-3 h-3" />
-                    <span>Exit Focus</span>
+                    <span>Exit Fullscreen</span>
                   </>
                 ) : (
                   <>
                     <Maximize2 className="w-3 h-3" />
-                    <span>Focus Mode</span>
+                    <span>Fullscreen</span>
                   </>
                 )}
               </button>
-
+ 
               {/* 3D Perspective View Button */}
               <button
                 className={`btn3d ${is3D ? "on" : ""}`}
@@ -934,8 +1028,34 @@ export default function GisCommandCenter() {
           )}
         </section>
 
+        {/* Right Edge Drawer Toggle Tab (< and > signs) */}
+        <button
+          className={`drawer-edge-tab right ${isRightCollapsed ? "collapsed" : "expanded"} ${
+            isFocusMode ? "fs-tab" : ""
+          }`}
+          onClick={handleToggleRightSidebar}
+          title={
+            isRightCollapsed
+              ? "Show Tactical Alerts Queue (Normal Size)"
+              : "Shrink / Push to Right Side"
+          }
+          aria-label={isRightCollapsed ? "Expand right sidebar" : "Collapse right sidebar"}
+        >
+          <span className="tab-pill">
+            {isRightCollapsed ? (
+              <ChevronLeft className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" />
+            )}
+          </span>
+        </button>
+
         {/* RIGHT COLUMN: Tactical Alert Queue */}
-        <aside className="col">
+        <aside
+          className={`col col-right ${isRightCollapsed ? "collapsed" : "expanded"} ${
+            isFocusMode ? "fs-drawer" : ""
+          }`}
+        >
           <section
             ref={queueCardRef}
             className={`card queue-card ${
@@ -947,8 +1067,15 @@ export default function GisCommandCenter() {
               <span className="t">Tactical Alert Queue</span>
               <span className="spacer" />
               {activeAlerts.length > 0 && (
-                <span className="queue-badge">{activeAlerts.length}</span>
+                <span className="queue-badge mr-1">{activeAlerts.length}</span>
               )}
+              <button
+                className="iconbtn"
+                onClick={handleToggleRightSidebar}
+                title="Shrink sidebar to right side"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {activeAlerts.length > 0 ? (
