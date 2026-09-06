@@ -2,52 +2,49 @@
 
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import type { Map as LeafletMapType, LayerGroup, Marker, CircleMarker, TileLayer } from "leaflet";
-
-export interface FacilityItem {
-  name: string;
-  lat: number;
-  lng: number;
-  type: string;
-  named: boolean;
-  id: number;
-}
-
-export interface DetectionItem {
-  cat: "industrial" | "persistent" | "flare" | "wildfire" | "agri" | "unknown";
-  risk: "critical" | "high" | "medium" | "low";
-  frp: number;
-  age: "today" | "3d" | "7d" | "30d";
-  lat: number;
-  lng: number;
-  note: string;
-}
+import {
+  GeoJSONFeatureCollection,
+  FacilityFeatureCollection,
+  EventProperties,
+  FacilityProperties,
+} from "../lib/types";
 
 export interface LeafletMapHandle {
   flyTo: (lat: number, lng: number, zoom?: number) => void;
-  openCriticalPopup: () => void;
-  openFacilityPopup: (id: number) => void;
+  openEventPopup: (eventId: number) => void;
+  openFacilityPopup: (facilityId: number) => void;
   invalidateSize: () => void;
 }
 
 interface LeafletMapProps {
-  facilities: FacilityItem[];
-  detections: DetectionItem[];
+  events: GeoJSONFeatureCollection;
+  facilities: FacilityFeatureCollection;
+  selectedEvent: EventProperties | null;
+  onSelectEvent: (event: EventProperties | null) => void;
+  onSelectFacility?: (facility: FacilityProperties | null) => void;
   basemapStyle: "optical" | "relief" | "dark";
   is3D: boolean;
-  onFacilityClick?: (facility: FacilityItem) => void;
 }
 
-const CAT_META: Record<DetectionItem["cat"], { label: string; color: string }> = {
-  industrial: { label: "Industrial Fire / Hazard", color: "#e11d48" },
-  flare: { label: "Routine Gas Flare", color: "#a855f7" },
-  persistent: { label: "Persistent Industrial Source", color: "#0ea5e9" },
+const CLASSIFICATION_COLORS: Record<string, { label: string; color: string }> = {
+  industrial_fire: { label: "Industrial Fire / Hazard", color: "#e11d48" },
+  gas_flare: { label: "Routine Gas Flare", color: "#a855f7" },
+  persistent_industrial_source: { label: "Persistent Industrial Source", color: "#0ea5e9" },
   wildfire: { label: "Wildfire Cluster", color: "#f97316" },
-  agri: { label: "Agricultural Burning", color: "#eab308" },
+  agricultural_burning: { label: "Agricultural Burning", color: "#eab308" },
   unknown: { label: "Unknown", color: "#94a3b8" },
 };
 
 const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function LeafletMap(
-  { facilities, detections, basemapStyle, is3D, onFacilityClick },
+  {
+    events,
+    facilities,
+    selectedEvent,
+    onSelectEvent,
+    onSelectFacility,
+    basemapStyle,
+    is3D,
+  },
   ref
 ) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -57,7 +54,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
   const facilityLayerRef = useRef<LayerGroup | null>(null);
   const detectionLayerRef = useRef<LayerGroup | null>(null);
   const facMarkersRef = useRef<Record<number, Marker>>({});
-  const critMarkerRef = useRef<Marker | null>(null);
+  const eventMarkersRef = useRef<Record<number, Marker | CircleMarker>>({});
   const LRef = useRef<typeof import("leaflet") | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -66,14 +63,16 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
         mapInstanceRef.current.flyTo([lat, lng], zoom, { duration: 1.2 });
       }
     },
-    openCriticalPopup: () => {
-      if (critMarkerRef.current && mapInstanceRef.current) {
-        critMarkerRef.current.openPopup();
+    openEventPopup: (eventId: number) => {
+      const mk = eventMarkersRef.current[eventId];
+      if (mk && mapInstanceRef.current) {
+        mk.openPopup();
       }
     },
-    openFacilityPopup: (id: number) => {
-      if (facMarkersRef.current[id] && mapInstanceRef.current) {
-        facMarkersRef.current[id].openPopup();
+    openFacilityPopup: (facilityId: number) => {
+      const mk = facMarkersRef.current[facilityId];
+      if (mk && mapInstanceRef.current) {
+        mk.openPopup();
       }
     },
     invalidateSize: () => {
@@ -83,7 +82,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
     },
   }));
 
-  // Initialize Map
+  // Initialize Leaflet Map
   useEffect(() => {
     let isMounted = true;
 
@@ -119,7 +118,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
       tiles[basemapStyle].addTo(map);
       activeStyleRef.current = basemapStyle;
 
-      // Zoom listener for hiding/showing labels
+      // Handle label visibility based on zoom
       const handleZoom = () => {
         if (!mapContainerRef.current) return;
         if (map.getZoom() < 7) {
@@ -140,7 +139,7 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
       detectionLayerRef.current = detLayer;
 
       renderFacilities(L, facLayer);
-      renderDetections(L, detLayer);
+      renderEvents(L, detLayer);
 
       setTimeout(() => {
         map.invalidateSize();
@@ -187,68 +186,89 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
     facLayer.clearLayers();
     facMarkersRef.current = {};
 
-    facilities.forEach((fc) => {
+    if (!facilities || !facilities.features) return;
+
+    facilities.features.forEach((feature) => {
+      const p = feature.properties;
+      const coords = feature.geometry.coordinates; // [lng, lat]
+      const lat = coords[1];
+      const lng = coords[0];
+
       const icon = L.divIcon({
         className: "fac-sq",
         iconSize: [10, 10],
         iconAnchor: [5, 5],
       });
 
-      const mk = L.marker([fc.lat, fc.lng], { icon });
+      const mk = L.marker([lat, lng], { icon });
       const popupHtml = `
-        <div class="pop-t">${fc.name}</div>
-        <span class="pop-tag" style="background:#0891b2">${fc.type.toUpperCase()}</span>
-        <div class="pop-m">OSM Refinery / Plant • Asset #${fc.id}<br/>${fc.lat.toFixed(3)}, ${fc.lng.toFixed(3)}</div>
+        <div class="pop-t">${p.name}</div>
+        <span class="pop-tag" style="background:#0891b2">${(p.facility_type || "PLANT").toUpperCase()}</span>
+        <div class="pop-m">Asset #${p.id} • Criticality: ${p.criticality || 1}<br/>${lat.toFixed(3)}, ${lng.toFixed(3)}</div>
       `;
       mk.bindPopup(popupHtml);
 
-      if (fc.named) {
-        mk.bindTooltip(fc.name, {
-          permanent: true,
-          direction: "right",
-          className: "flabel",
-          offset: [7, 0],
-        });
-      }
+      mk.bindTooltip(p.name, {
+        permanent: true,
+        direction: "right",
+        className: "flabel",
+        offset: [7, 0],
+      });
 
       mk.on("click", () => {
-        if (onFacilityClick) {
-          onFacilityClick(fc);
+        if (onSelectFacility) {
+          onSelectFacility(p);
         }
       });
 
-      facMarkersRef.current[fc.id] = mk;
+      facMarkersRef.current[p.id] = mk;
       facLayer.addLayer(mk);
     });
   };
 
-  // Helper: Render Detections
-  const renderDetections = (L: typeof import("leaflet"), detLayer: LayerGroup) => {
+  // Helper: Render Events
+  const renderEvents = (L: typeof import("leaflet"), detLayer: LayerGroup) => {
     detLayer.clearLayers();
-    critMarkerRef.current = null;
+    eventMarkersRef.current = {};
 
-    detections.forEach((dt) => {
-      const meta = CAT_META[dt.cat];
+    if (!events || !events.features) return;
+
+    events.features.forEach((feature) => {
+      const p = feature.properties;
+      const coords = feature.geometry.coordinates; // [lng, lat]
+      const lat = coords[1];
+      const lng = coords[0];
+
+      const meta = CLASSIFICATION_COLORS[p.classification] || {
+        label: (p.classification || "Unknown").replace(/_/g, " "),
+        color: "#94a3b8",
+      };
+
       const popHtml = `
         <div class="pop-t">${meta.label}</div>
-        <span class="pop-tag" style="background:${meta.color}">${dt.risk.toUpperCase()}</span>
-        <div class="pop-m">FRP: ${dt.frp.toFixed(1)} MW • Age: ${dt.age}<br/>${dt.note}<br/>${dt.lat.toFixed(4)}, ${dt.lng.toFixed(4)}</div>
+        <span class="pop-tag" style="background:${meta.color}">${(p.risk_level || "LOW").toUpperCase()}</span>
+        <div class="pop-m">FRP: ${Number(p.frp).toFixed(1)} MW • Conf: ${p.confidence || "nominal"}<br/>
+        ${p.nearest_facility_name ? `Near: ${p.nearest_facility_name}<br/>` : ""}
+        ${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
       `;
 
-      if (dt.risk === "critical") {
+      if (p.risk_level === "CRITICAL") {
         const icon = L.divIcon({
           className: "",
           html: '<div class="pulse-wrap"><span class="pulse-ring"></span><span class="pulse-core"></span></div>',
           iconSize: [18, 18],
           iconAnchor: [9, 9],
         });
-        const cm = L.marker([dt.lat, dt.lng], { icon });
+        const cm = L.marker([lat, lng], { icon });
         cm.bindPopup(popHtml);
+        cm.on("click", () => {
+          onSelectEvent(p);
+        });
         detLayer.addLayer(cm);
-        critMarkerRef.current = cm;
+        eventMarkersRef.current[p.id] = cm;
       } else {
-        const rad = Math.min(16, 4 + Math.sqrt(dt.frp) * 1.9);
-        const cmm = L.circleMarker([dt.lat, dt.lng], {
+        const rad = Math.min(16, 4 + Math.sqrt(p.frp || 2) * 1.9);
+        const cmm = L.circleMarker([lat, lng], {
           radius: rad,
           color: "#ffffff",
           weight: 2,
@@ -256,11 +276,15 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
           fillOpacity: 0.92,
         });
         cmm.bindPopup(popHtml);
-        cmm.bindTooltip(`${meta.label} — ${dt.frp.toFixed(1)} MW`, {
+        cmm.bindTooltip(`${meta.label} — ${Number(p.frp).toFixed(1)} MW`, {
           direction: "top",
           offset: [0, -4],
         });
+        cmm.on("click", () => {
+          onSelectEvent(p);
+        });
         detLayer.addLayer(cmm);
+        eventMarkersRef.current[p.id] = cmm;
       }
     });
   };
@@ -272,12 +296,12 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
     }
   }, [facilities]);
 
-  // Re-render detections on detection change
+  // Re-render events on events change
   useEffect(() => {
     if (LRef.current && detectionLayerRef.current) {
-      renderDetections(LRef.current, detectionLayerRef.current);
+      renderEvents(LRef.current, detectionLayerRef.current);
     }
-  }, [detections]);
+  }, [events]);
 
   return (
     <div
