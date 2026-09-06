@@ -442,7 +442,7 @@ export default function GisCommandCenter() {
           </div>
           <div className="brand-titles">
             <h1>
-              THERMAL INTELLIGENCE <span className="badge-id">SIH26162 • NTRD</span>
+              A.G.N.I. <span className="badge-id">SIH26162 • NTRO</span>
             </h1>
             <p>NASA FIRMS VIIRS • Facility Baselines • AI Explainability</p>
           </div>
