@@ -656,6 +656,11 @@ svg {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  z-index: 1;
 }
 
 .map-toolbar {
@@ -666,6 +671,8 @@ svg {
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
   background: #fbfcfe;
+  flex: none;
+  z-index: 10;
 }
 
 .tb-label {
@@ -763,20 +770,26 @@ svg {
 #mapShell {
   flex: 1;
   min-height: 0;
+  width: 100%;
+  height: 100%;
   position: relative;
   overflow: hidden;
   background: #dfe7ee;
+  contain: paint;
+  isolation: isolate;
 }
 
 #map {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
   transform-origin: 50% 20%;
 }
 
 #mapShell.tilt #map {
-  transform: perspective(1300px) rotateX(14deg) scale(1.03);
+  transform: perspective(1200px) rotateX(12deg) scale(1.02);
 }
 
 .leaflet-container {
@@ -1065,16 +1078,16 @@ svg {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(12, 26, 43, 0.45);
-  backdrop-filter: blur(3px);
+  background: rgba(12, 26, 43, 0.55);
+  backdrop-filter: blur(4px);
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 9999 !important;
 }
 
 .modal.open {
-  display: flex;
+  display: flex !important;
 }
 
 .modal-card {
@@ -1151,7 +1164,7 @@ svg {
   position: fixed;
   top: 60px;
   right: 16px;
-  z-index: 300;
+  z-index: 10000 !important;
   display: flex;
   flex-direction: column;
   gap: 7px;

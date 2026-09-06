@@ -306,10 +306,10 @@ const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function Leafle
   return (
     <div
       id="mapShell"
-      className={is3D ? "tilt" : ""}
-      style={{ position: "relative", width: "100%", height: "100%" }}
+      className={`flex-1 min-h-0 w-full relative overflow-hidden ${is3D ? "tilt" : ""}`}
+      style={{ isolation: "isolate", contain: "paint" }}
     >
-      <div id="map" ref={mapContainerRef} />
+      <div id="map" ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
     </div>
   );
 });
